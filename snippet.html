@@ -1,6 +1,5 @@
 <div id="starfix-3d-box"
     style="width: 100%; height: 700px; background: #f0f0f0; border-radius: 12px; overflow: hidden; position: relative; transition: all 0.5s ease; box-shadow: inset 0 0 50px rgba(0,0,0,0.05);">
-    <!-- Loading Overlay -->
     <div id="starfix-loading"
         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; transition: opacity 0.5s ease;">
         <div
@@ -10,7 +9,6 @@
             style="margin-top: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; font-weight: 500; letter-spacing: 1px;">
             LOADING 3D MODEL</div>
     </div>
-    <!-- Control Panel -->
     <div id="starfix-controls"
         style="position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 10;">
         <div class="starfix-toggle-wrapper" title="Toggle Wireframe"><input id="toggle-wireframe"
@@ -23,7 +21,7 @@
                 type="checkbox" /> <label class="starfix-label" for="toggle-bg"> Studio HDR </label></div>
     </div>
 </div>
-<script type="module">// <![CDATA[
+<script type="module">
     import * as THREE from 'https://esm.sh/three@0.160.0';
     import { GLTFLoader } from 'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
     import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
@@ -36,7 +34,6 @@
         const MODEL_URL = "https://raw.githubusercontent.com/marffinn/starfix-models/main/LFH_nail.glb";
         const EXR_URL = "https://raw.githubusercontent.com/marffinn/starfix-models/main/monochrome_studio_02_2k.exr";
 
-        // --- SCENE SETUP ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf8f8f8);
 
@@ -47,19 +44,16 @@
         renderer.setSize(container.clientWidth, container.clientHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-        // --- PRO LIGHTING & RENDERING ---
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.5; // Increased exposure for brightness
+        renderer.toneMappingExposure = 1.5;
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
 
-        // 1. Hemisphere Light for soft natural fill
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
         scene.add(hemiLight);
 
-        // 2. Strong Directional Key Light
         const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
         keyLight.position.set(5, 10, 5);
         keyLight.castShadow = true;
@@ -68,17 +62,14 @@
         keyLight.shadow.bias = -0.0001;
         scene.add(keyLight);
 
-        // 3. Fill Light to soften shadows
         const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
         fillLight.position.set(-5, 5, 5);
         scene.add(fillLight);
 
-        // 4. Back Light for rim highlights
         const backLight = new THREE.DirectionalLight(0xffffff, 2.0);
         backLight.position.set(0, 5, -10);
         scene.add(backLight);
 
-        // --- GROUND PLANE ---
         const groundGeometry = new THREE.PlaneGeometry(50, 50);
         const groundMaterial = new THREE.MeshStandardMaterial({
             color: 0xffffff,
@@ -92,13 +83,11 @@
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // Subtle Grid
         const grid = new THREE.GridHelper(20, 40, 0xcccccc, 0xdddddd);
         grid.material.opacity = 0.15;
         grid.material.transparent = true;
         scene.add(grid);
 
-        // --- CONTROLS ---
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
@@ -107,13 +96,11 @@
         controls.minDistance = 0.01;
         controls.maxDistance = 50;
 
-        // --- LOADERS ---
         let modelMesh = null;
         let exrBackground = null;
         const gltfLoader = new GLTFLoader();
         const exrLoader = new EXRLoader();
 
-        // Load EXR
         exrLoader.load(EXR_URL, (texture) => {
             texture.mapping = THREE.EquirectangularReflectionMapping;
             exrBackground = texture;
@@ -127,9 +114,8 @@
                     node.castShadow = true;
                     node.receiveShadow = true;
 
-                    // FORCE MATERIAL UPDATE FOR BETTER LIGHTING
                     if (node.material) {
-                        node.material.roughness = 0.3; // Make it a bit shinier
+                        node.material.roughness = 0.3;
                         node.material.metalness = 0.1;
                         node.material.envMapIntensity = 1.5;
                         node.material.needsUpdate = true;
@@ -137,7 +123,6 @@
                 }
             });
 
-            // Auto-center
             const box = new THREE.Box3().setFromObject(modelMesh);
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
@@ -145,11 +130,9 @@
             modelMesh.position.sub(center);
             scene.add(modelMesh);
 
-            // Ground position
             ground.position.y = -size.y / 2 - 0.001;
             grid.position.y = ground.position.y + 0.0005;
 
-            // Camera fit
             const maxDim = Math.max(size.x, size.y, size.z);
             const cameraDist = maxDim * 1.5;
             camera.position.set(cameraDist, cameraDist * 0.6, cameraDist);
@@ -163,7 +146,6 @@
             }, 500);
         });
 
-        // --- UI LOGIC ---
         document.getElementById('toggle-wireframe').addEventListener('change', (e) => {
             if (!modelMesh) return;
             modelMesh.traverse((node) => {
@@ -181,7 +163,7 @@
                 scene.background = exrBackground;
                 scene.environment = exrBackground;
                 container.style.background = '#000';
-                hemiLight.intensity = 0.5; // Lower hemi when using HDR
+                hemiLight.intensity = 0.5;
             } else {
                 scene.background = new THREE.Color(0xf8f8f8);
                 scene.environment = null;
@@ -204,4 +186,4 @@
 
         animate();
     })();
-// ]]></script>
+</script>
