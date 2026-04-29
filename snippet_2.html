@@ -1,0 +1,168 @@
+<div id="starfix-3d-box"
+    style="width: 100%; height: 700px; background: #f0f0f0; border-radius: 12px; overflow: hidden; position: relative; transition: all 0.5s ease; box-shadow: inset 0 0 50px rgba(0,0,0,0.05);">
+    <div id="starfix-loading"
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; transition: opacity 0.5s ease;">
+        <div
+            style="width: 40px; height: 40px; border: 3px solid #ddd; border-top: 3px solid #333; border-radius: 50%; animation: spin 1s linear infinite;">
+             </div>
+        <div
+            style="margin-top: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; font-weight: 500; letter-spacing: 1px;">
+            LOADING 3D MODEL</div>
+    </div>
+    <div id="starfix-controls"
+        style="position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 10;">
+
+        <div class="starfix-toggle-wrapper" title="Toggle Ground Plane"><input id="toggle-ground"
+                class="starfix-checkbox" checked="checked" type="checkbox" /> <label class="starfix-label"
+                for="toggle-ground"> Ground </label></div>
+
+    </div>
+</div>
+<script type="module">
+    import * as THREE from 'https://esm.sh/three@0.160.0';
+    import { GLTFLoader } from 'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+    import { EXRLoader } from 'https://esm.sh/three@0.160.0/examples/jsm/loaders/EXRLoader.js';
+
+    (function () {
+        const container = document.getElementById('starfix-3d-box');
+        if (!container) return;
+
+        const MODEL_URL = "https://raw.githubusercontent.com/marffinn/starfix-models/main/LFH_TZ_red.glb";
+        const EXR_URL = "https://raw.githubusercontent.com/marffinn/starfix-models/main/monochrome_studio_02_2k.exr";
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf8f8f8);
+
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.01, 1000);
+        camera.position.set(2, 2, 2);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, logarithmicDepthBuffer: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.5;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+        scene.add(hemiLight);
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        keyLight.position.set(5, 10, 5);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 2048;
+        keyLight.shadow.mapSize.height = 2048;
+        keyLight.shadow.bias = -0.0001;
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        fillLight.position.set(-5, 5, 5);
+        scene.add(fillLight);
+
+        const backLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        backLight.position.set(0, 5, -10);
+        scene.add(backLight);
+
+        const groundGeometry = new THREE.PlaneGeometry(50, 50);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.9,
+            metalness: 0.0,
+            transparent: true,
+            opacity: 0.6
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        const grid = new THREE.GridHelper(20, 40, 0xcccccc, 0xdddddd);
+        grid.material.opacity = 0.15;
+        grid.material.transparent = true;
+        scene.add(grid);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+        controls.minDistance = 0.01;
+        controls.maxDistance = 50;
+
+        let modelMesh = null;
+        const gltfLoader = new GLTFLoader();
+        const exrLoader = new EXRLoader();
+
+        exrLoader.load(EXR_URL, (texture) => {
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            scene.environment = texture;
+        });
+
+        gltfLoader.load(MODEL_URL, (gltf) => {
+            modelMesh = gltf.scene;
+
+            modelMesh.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+
+                    if (node.material) {
+                        node.material.roughness = 0.3;
+                        node.material.metalness = 0.1;
+                        node.material.envMapIntensity = 1.5;
+                        node.material.needsUpdate = true;
+                    }
+                }
+            });
+
+            const box = new THREE.Box3().setFromObject(modelMesh);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+
+            modelMesh.position.sub(center);
+            scene.add(modelMesh);
+
+            ground.position.y = -size.y / 2 - 0.001;
+            grid.position.y = ground.position.y + 0.0005;
+
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const cameraDist = maxDim * 1.5;
+            camera.position.set(cameraDist, cameraDist * 0.6, cameraDist);
+
+            controls.target.set(0, 0, 0);
+            controls.update();
+
+            document.getElementById('starfix-loading').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('starfix-loading').style.display = 'none';
+            }, 500);
+        });
+
+
+
+        document.getElementById('toggle-ground').addEventListener('change', (e) => {
+            ground.visible = e.target.checked;
+            grid.visible = e.target.checked;
+        });
+
+
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        animate();
+    })();
+</script>
