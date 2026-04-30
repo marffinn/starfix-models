@@ -1,5 +1,5 @@
 <div id="starfix-3d-box"
-    style="width: 100%; height: 700px; background: #f0f0f0; border-radius: 12px; overflow: hidden; position: relative; transition: all 0.5s ease; box-shadow: inset 0 0 50px rgba(0,0,0,0.05);">
+    style="width: 100%; min-height: 500px; height: 100%; background: #f0f0f0; border-radius: 12px; overflow: hidden; position: relative; transition: all 0.5s ease; box-shadow: inset 0 0 50px rgba(0,0,0,0.05);">
     <div id="starfix-loading"
         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; transition: opacity 0.5s ease;">
         <div
@@ -11,14 +11,11 @@
     </div>
     <div id="starfix-controls"
         style="position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 10;">
-        <div class="starfix-toggle-wrapper" title="Toggle Wireframe"><input id="toggle-wireframe"
-                class="starfix-checkbox" type="checkbox" /> <label class="starfix-label" for="toggle-wireframe">
-                Wireframe </label></div>
+
         <div class="starfix-toggle-wrapper" title="Toggle Ground Plane"><input id="toggle-ground"
                 class="starfix-checkbox" checked="checked" type="checkbox" /> <label class="starfix-label"
                 for="toggle-ground"> Ground </label></div>
-        <div class="starfix-toggle-wrapper" title="Switch Background"><input id="toggle-bg" class="starfix-checkbox"
-                type="checkbox" /> <label class="starfix-label" for="toggle-bg"> Studio HDR </label></div>
+
     </div>
 </div>
 <script type="module">
@@ -31,7 +28,7 @@
         const container = document.getElementById('starfix-3d-box');
         if (!container) return;
 
-        const MODEL_URL = "https://raw.githubusercontent.com/marffinn/starfix-models/main/LFH_TZ_red.glb";
+        const MODEL_URL = "https://raw.githubusercontent.com/marffinn/starfix-models/main/LXK_koszulka.glb";
         const EXR_URL = "https://raw.githubusercontent.com/marffinn/starfix-models/main/monochrome_studio_02_2k.exr";
 
         const scene = new THREE.Scene();
@@ -97,13 +94,12 @@
         controls.maxDistance = 50;
 
         let modelMesh = null;
-        let exrBackground = null;
         const gltfLoader = new GLTFLoader();
         const exrLoader = new EXRLoader();
 
         exrLoader.load(EXR_URL, (texture) => {
             texture.mapping = THREE.EquirectangularReflectionMapping;
-            exrBackground = texture;
+            scene.environment = texture;
         });
 
         gltfLoader.load(MODEL_URL, (gltf) => {
@@ -146,31 +142,14 @@
             }, 500);
         });
 
-        document.getElementById('toggle-wireframe').addEventListener('change', (e) => {
-            if (!modelMesh) return;
-            modelMesh.traverse((node) => {
-                if (node.isMesh) node.material.wireframe = e.target.checked;
-            });
-        });
+
 
         document.getElementById('toggle-ground').addEventListener('change', (e) => {
             ground.visible = e.target.checked;
             grid.visible = e.target.checked;
         });
 
-        document.getElementById('toggle-bg').addEventListener('change', (e) => {
-            if (e.target.checked) {
-                scene.background = exrBackground;
-                scene.environment = exrBackground;
-                container.style.background = '#000';
-                hemiLight.intensity = 0.5;
-            } else {
-                scene.background = new THREE.Color(0xf8f8f8);
-                scene.environment = null;
-                container.style.background = '#f0f0f0';
-                hemiLight.intensity = 1.2;
-            }
-        });
+
 
         function animate() {
             requestAnimationFrame(animate);
